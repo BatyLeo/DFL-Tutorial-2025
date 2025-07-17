@@ -19,35 +19,166 @@ end
 # ╔═╡ 54ddb5a5-8a96-4cb7-af3d-727e7247befd
 using PlutoUI, PlutoTeachingTools
 
+# ╔═╡ 2876e48e-f802-48ed-999b-1c0a3a4ddcc8
+using InferOpt
+
 # ╔═╡ b9ad8e94-621c-11f0-0426-7f7ab481572c
 using DecisionFocusedLearningBenchmarks
+
+# ╔═╡ 4d0a0ac0-47c7-4cf9-926b-2d15e05b4d60
+using MLUtils
 
 # ╔═╡ 2a95baf0-dcc0-455b-a56a-4713388912f1
 using JuMP, HiGHS
 
 # ╔═╡ 1d9be20f-8c93-47cc-bfa6-0c757823dc37
-using LinearAlgebra: dot
-
-# ╔═╡ 963c40ab-ca50-48a2-b90c-7f2b4b5cd6e1
-using Zygote
-
-# ╔═╡ 72e22ebb-fbda-4b6a-b4f6-e7ec1baacb87
-using InferOpt
+using LinearAlgebra: dot, norm
 
 # ╔═╡ 01355e11-bd28-48b0-8d56-08f809b4bdc9
 using Flux
 
+# ╔═╡ 963c40ab-ca50-48a2-b90c-7f2b4b5cd6e1
+using Zygote
+
+# ╔═╡ 89cb2e20-3d9c-41a1-996e-8fa99664a35a
+using ForwardDiff
+
+# ╔═╡ 7b133396-3cf8-4832-b29d-85fb88b1e680
+using Statistics: mean
+
+# ╔═╡ 7b03e225-cbc7-4888-be25-a1d7a1123a43
+using LaTeXStrings: @L_str
+
+# ╔═╡ d9a5e173-fb8e-4c1a-8964-6ac5c3190e53
+using DifferentiableExpectations
+
 # ╔═╡ 61e9ddca-6485-420b-922a-d14fb1b130d9
 using Plots
+
+# ╔═╡ df6e0f09-b95a-46a7-85c6-05243b7d16fb
+md"# Decision-Focused Learning: a Julia demo"
 
 # ╔═╡ 05c355e3-3ec2-44cf-a8a7-bd5b001d3dac
 ChooseDisplayMode()
 
+# ╔═╡ 812c8942-dbed-4cd0-9d7e-969a87b778b6
+color = :inferno;
+
+# ╔═╡ 239a1bf0-9157-47da-9a98-b705f6c80980
+TableOfContents(depth=3)
+
+# ╔═╡ cc433e81-6c00-4925-83eb-d17cfbba28c1
+md"TODO: put all slider definitions here"
+
+# ╔═╡ 09ff5943-ff3c-4cf1-a04c-749989377f30
+set_angle_oracle = md"""
+angle = $(@bind angle_oracle Slider(0:0.01:2π; default=π, show_value=false))
+""";
+
+# ╔═╡ 5b76a60c-5aab-4ac4-b605-bd70ea3a8e18
+set_angle_perturbed = md"""
+angle = $(@bind angle_perturbed Slider(0:0.01:2π; default=π, show_value=false))
+""";
+
+# ╔═╡ 26804fd8-593a-45d9-9a4f-285f13090b61
+set_nb_samples_perturbed = md"""
+samples = $(@bind nb_samples_perturbed Slider(1:500; default=10, show_value=true))
+""";
+
+# ╔═╡ 83875d7c-b19c-4579-be47-9bdf720e9f7d
+set_epsilon_perturbed = md"""
+epsilon = $(@bind ε Slider(0.0:0.02:1.0; default=0.0, show_value=true))
+""";
+
+# ╔═╡ 133ef754-12e0-4b7b-a6ba-2d7ee5bfee57
+set_plot_probadist_perturbed = md"""
+Plot probability distribution? $(@bind plot_probadist_perturbed CheckBox())
+""";
+
+# ╔═╡ 9737e917-c88b-478a-a410-c91640953368
+md"# Introduction"
+
+# ╔═╡ 8a2c085a-af1a-4556-a938-bf9ac1fc85e2
+md"""
+**Goals of this session**:
+- Teach you how to implement and train a DFL policy in practice
+- Generic approach that can be applied to most problems
+- Showcase Julia programming, direct comparison with Python at the end
+- Give you some intuition on why things work or not
+"""
+
+# ╔═╡ 546724f0-f625-4743-b3f2-571763437499
+md"## A few words about Julia"
+
+# ╔═╡ 625a7ecd-3a43-49f5-bbac-36a85bde8480
+md"""
+- how many of you are already familiar with Julia?
+- how to install
+- what is a Pluto notebook and how to run it
+- where to find this notebook (qr code + url)
+"""
+
+# ╔═╡ b4972541-6017-4336-b6f3-f727bc77a577
+md"## JuliaDecisionFocusedLearning"
+
+# ╔═╡ a8e6c1a3-f426-4cff-8c85-d4f54cf498e9
+md"""
+- github org link + image
+- main package is InferOpt.jl
+- DFLBench for easy benchmark problems
+"""
+
+# ╔═╡ c376de40-1b7b-42be-916c-aafb5961145d
+md"# Recap on Decision-Focused Learning"
+
+# ╔═╡ 3645c5e0-d088-4db0-ba9e-ff1fcc55d533
+md"## General setting"
+
+# ╔═╡ 763c72ee-12a7-48b6-866b-fc257a5c0f6e
+md"""
+- pipeline
+- learning problem, find w such that policy gives a good solution of some cost function
+- two main paradigms: supervised and non-supervised
+"""
+
+# ╔═╡ 23e18acb-cbd7-4485-8aba-aa4931f49fd4
+md"## Etc."
+
+# ╔═╡ 00ea1f0e-41a0-4a52-8323-98d518f3995b
+md"## Needed component to build a policy"
+
+# ╔═╡ dd1ed688-4753-445d-8f19-f3f53eed35f3
+md"""
+- statistical model $\varphi_w$
+- CO algorithm $f$
+"""
+
+# ╔═╡ bb301f6a-444f-4ef2-94a7-c6dae8e308c2
+md"## Needed components to train a policy"
+
+# ╔═╡ e043c78e-445b-4331-97a3-47a0278c4efc
+md"# 2-dimensional toy example"
+
+# ╔═╡ f4898130-b52f-4e80-a087-451ff2a24cd3
+md"## Problem statement"
+
+# ╔═╡ 3f2fa925-adc2-4539-84df-43d462b65c9d
+md"Y(x) is small, finite and 2-dimensional"
+
 # ╔═╡ 7a8918b3-025c-448c-a159-5c7e307b570d
-b = Argmax2DBenchmark(polytope_vertex_range=3:12)
+b = Argmax2DBenchmark(; polytope_vertex_range=5:8)
+
+# ╔═╡ a19a277e-bc7c-4703-bbf4-12194d45f38c
+md"## Dataset creation"
 
 # ╔═╡ b9b2a238-6628-45cf-b8c5-6463bf87cf0f
-dataset = generate_dataset(b, 100)
+dataset = generate_dataset(b, 100; seed=0)
+
+# ╔═╡ 931e3f3b-6cb0-400e-9cc2-a39336fe9ca7
+train_dataset, test_dataset = splitobs(dataset; at=0.5)
+
+# ╔═╡ 561456a3-6041-4f06-9750-dd3e8506be03
+md"## Some visualization"
 
 # ╔═╡ 3d131fbf-b2aa-4570-8764-e9c0a7ad072e
 index_slider = @bind index NumberField(1:length(dataset))
@@ -57,6 +188,12 @@ sample = dataset[index]
 
 # ╔═╡ 880950d5-4a1e-4d89-8b05-dbd06a1b9922
 (; x, instance, θ_true, y_true) = sample
+
+# ╔═╡ fc54fe59-a3b3-48b5-b935-f87ee197ae94
+plot_data(b, sample)
+
+# ╔═╡ 95e9e53b-374b-4520-a63a-a806bbca0cda
+md"## Visu 2"
 
 # ╔═╡ 4bda061f-569d-440f-aa92-541ee4bd65c5
 θ_true
@@ -73,8 +210,17 @@ plot_data(b, sample; θ_true=θ)
 # ╔═╡ dabb7e3a-d4d4-4def-a6a3-1192503cbe7d
 Columns(angle_slider, index_slider)
 
+# ╔═╡ 7261e014-de6a-4c69-93b7-07d5b1101d82
+md"# Building the policy"
+
+# ╔═╡ ce630418-9e51-4876-a078-1839ef9cf936
+md"## the maximizer can be any Julia function"
+
 # ╔═╡ 7614a60a-0fa6-45cf-bd41-cdc6ce70a120
 f = generate_maximizer(b)
+
+# ╔═╡ ab40b942-9a36-48fc-9631-be3275e658b0
+maximizer(θ; instance, kwargs...) = f(θ; instance)
 
 # ╔═╡ 2515b1a6-4a2d-49ae-bd17-418b2c93cf08
 function f_mip(θ; instance)
@@ -88,11 +234,38 @@ function f_mip(θ; instance)
 	return instance[argmax(value.(y))]
 end
 
-# ╔═╡ 3ce98992-e215-4fae-9434-c342fc27e92b
-f(θ; instance)
+# ╔═╡ 129535b9-b6b7-484a-93e1-39b67770da7a
+md"## Statistical model $\varphi_w$"
 
-# ╔═╡ 47dfb7f0-486f-4977-90fa-87fba16c74db
-f_mip(θ; instance)
+# ╔═╡ a192579b-0e92-4ae0-8865-56d77a88f889
+initial_model = Dense(5 => 2; bias=false)
+
+# ╔═╡ 8dcc4098-1b4d-4fe3-959d-7dcdc31c60b4
+initial_model.weight
+
+# ╔═╡ cfe25dab-f204-420f-8519-22fc3ef6f81b
+md"## Full policy evaluation"
+
+# ╔═╡ 4e71ff0f-0bc8-4c9e-8d90-c8c2d829ed99
+initial_policy(x; instance) = f(initial_model(x); instance)
+
+# ╔═╡ eac5a14f-46c3-486a-af79-caa6dd9a04e0
+initial_policy(x; instance)
+
+# ╔═╡ 094a8c13-16a8-43db-8267-b08683721d9e
+b.encoder[1].weight
+
+# ╔═╡ 18dafc47-273b-479b-9560-0485ffea64b0
+md"## Let's try differentiating through the policy"
+
+# ╔═╡ 73f196d5-be4d-4826-842e-738fab76b910
+md"Backward automatic differentiation:"
+
+# ╔═╡ 2f638ae9-10b8-4f2c-ac3d-481deaebe63b
+md"Forward automatic differentiation:"
+
+# ╔═╡ b333d3c6-2bea-4349-85fe-2a7dbd47f785
+md"Computing the Jacobian matrix of $f$:"
 
 # ╔═╡ d5bcaf34-a888-4699-944d-e183e24224f1
 Zygote.jacobian(θ -> f(θ; instance), θ)
@@ -100,11 +273,8 @@ Zygote.jacobian(θ -> f(θ; instance), θ)
 # ╔═╡ 54a9a919-8fa2-4c1e-805b-5cce1508ca82
 Zygote.jacobian(θ -> f_mip(θ; instance), θ)
 
-# ╔═╡ a192579b-0e92-4ae0-8865-56d77a88f889
-initial_model = generate_statistical_model(b)
-
-# ╔═╡ ab40b942-9a36-48fc-9631-be3275e658b0
-maximizer(θ; instance, kwargs...) = f(θ; instance)
+# ╔═╡ 38409078-f421-42f6-b416-aa0965c4ae41
+md"TODO: forward diff gradient computations"
 
 # ╔═╡ 028d396d-ee09-4357-a3f1-3628a0279967
 cost(y; θ_true, kwargs...) = -dot(θ_true, y)
@@ -112,8 +282,25 @@ cost(y; θ_true, kwargs...) = -dot(θ_true, y)
 # ╔═╡ e33c7730-1d9d-4f91-a46e-d5d17ac98dca
 cost(y_true; θ_true)
 
+# ╔═╡ c90217ce-a29d-4757-bf6c-65ac5f55747d
+begin
+	X, Y = range(-1, 1, length=200), range(-1, 1, length=200);
+	g(x, y) = dot(θ_true, maximizer([x, y]; instance))
+	Z = @. g(X', Y);
+	contour(X, Y, Z; color, fill=true, xlabel="θ₁", ylabel="θ₂")
+end
+
+# ╔═╡ f5f2a94b-9602-4843-901a-b5f836aadf8e
+plot(x -> dot(θ_true, maximizer([x, θ[2]]; instance)))
+
+# ╔═╡ 39179c93-70c3-46db-a64f-cbabc4a57652
+md"# REINFORCE: always ''works'' on paper"
+
+# ╔═╡ 8632db83-58d0-4cca-9cd1-e9c39d45ac6d
+md"## Regularizing the CO algorithm"
+
 # ╔═╡ 6fe5710a-acc6-4e08-b641-0a3c603bc148
-perturbed = PerturbedAdditive(maximizer; nb_samples=200, ε=0.1, threaded=false)
+perturbed = PerturbedAdditive(maximizer; nb_samples=200, ε=0.1, threaded=false, variance_reduction=false)
 
 # ╔═╡ 1181340f-c8bc-4ae2-b75d-1aa4bf8b0dcc
 perturbed_precise = PerturbedAdditive(maximizer; nb_samples=1000, ε=0.1, threaded=false)
@@ -121,34 +308,121 @@ perturbed_precise = PerturbedAdditive(maximizer; nb_samples=1000, ε=0.1, thread
 # ╔═╡ dd572391-4c4d-4f78-90e4-176a95ea51f8
 perturbed(θ; instance)
 
+# ╔═╡ a3665206-b01a-4e29-8f08-8c6e12de6095
+compute_probability_distribution(
+	perturbed, θ; instance,
+)
+
+# ╔═╡ 7b9fe9bc-5b20-44d6-9965-77525591070a
+function get_angle(v)
+    @assert !(norm(v) ≈ 0)
+    v = v ./ norm(v)
+    if v[2] >= 0
+        return acos(v[1])
+    else
+        return π + acos(-v[1])
+    end
+end;
+
+# ╔═╡ 3038f5c0-ad43-4571-8e91-7509b81ca18e
+function plot_distribution!(pl, probadist)
+    A = probadist.atoms
+    As = sort(A; by=get_angle)
+    p = probadist.weights
+    Plots.plot!(
+        pl,
+        vcat(map(first, As), first(As[1])),
+        vcat(map(last, As), last(As[1]));
+        fillrange=0,
+        fillcolor=:blue,
+        fillalpha=0.1,
+        linestyle=:dash,
+        linecolor=Colors.JULIA_LOGO_COLORS.blue,
+        label=L"\mathrm{conv}(\hat{p}(\theta))",
+    )
+    return Plots.scatter!(
+        pl,
+        map(first, A),
+        map(last, A);
+        markersize=25 .* p .^ 0.5,
+        markercolor=Colors.JULIA_LOGO_COLORS.blue,
+        markerstrokewidth=0,
+        markeralpha=0.4,
+        label=L"\hat{p}(\theta)",
+    )
+end;
+
+# ╔═╡ 62d1655c-b664-49a8-b4c5-b16c76a5df0c
+function plot_expectation!(pl, probadist)
+    ŷΩ = mean(probadist)
+    return scatter!(
+        pl,
+        [ŷΩ[1]],
+        [ŷΩ[2]];
+        color=Colors.JULIA_LOGO_COLORS.blue,
+        markersize=6,
+        markershape=:hexagon,
+        label=L"\hat{f}(\theta)",
+    )
+end;
+
+# ╔═╡ 66fe68b4-6cef-4f10-bda8-0b9d3c135331
+function compress_distribution!(
+    probadist::DifferentiableExpectations.FixedAtomsProbabilityDistribution; atol=0
+)
+    (; atoms, weights) = probadist
+    to_delete = Int[]
+    for i in length(probadist):-1:1
+        ai = atoms[i]
+        for j in 1:(i - 1)
+            aj = atoms[j]
+            if isapprox(ai, aj; atol=atol)
+                weights[j] += weights[i]
+                push!(to_delete, i)
+                break
+            end
+        end
+    end
+    sort!(to_delete)
+    deleteat!(atoms, to_delete)
+    deleteat!(weights, to_delete)
+    return probadist
+end;
+
+# ╔═╡ 8b65bc69-ffac-4e3f-abf7-7fdaf31cd5af
+TwoColumn(set_angle_perturbed, set_epsilon_perturbed)
+
+# ╔═╡ 222cdfe9-c720-4103-8ca1-db9b5d8b1cc3
+TwoColumn(set_nb_samples_perturbed, set_plot_probadist_perturbed)
+
+# ╔═╡ e3b9d3e2-b413-4421-8df9-1f3e5990fcf9
+let
+	perturbed_layer = PerturbedAdditive(maximizer; nb_samples=200, ε, threaded=false, variance_reduction=false)
+	θ = 0.5 .* [cos(angle_perturbed), sin(angle_perturbed)]
+	probadist = compute_probability_distribution(
+		perturbed_layer, θ; instance,
+	)
+	compress_distribution!(probadist)
+	pl = plot_data(b, sample; θ_true=θ)
+	plot_probadist_perturbed && plot_distribution!(pl, probadist)
+	plot_expectation!(pl, probadist)
+	pl
+end
+
 # ╔═╡ 11aa9fff-b7ff-414e-8733-746f268727f1
 loss = Pushforward(perturbed, cost)
-
-# ╔═╡ 03087725-c499-421e-aa04-f083436d8f21
-loss(θ; θ_true, instance)
-
-# ╔═╡ c90217ce-a29d-4757-bf6c-65ac5f55747d
-begin
-	X, Y = range(-1, 1, length=100), range(-1, 1, length=100);
-	g(x, y) = dot(θ_true, maximizer([x, y]; instance))
-	Z = @. g(X', Y);
-	contour(X, Y, Z; color=:turbo, fill=true, xlabel="θ₁", ylabel="θ₂")
-end
 
 # ╔═╡ 9e663a4f-9a43-4a02-a332-2ab7d919dc42
 begin
 	h(x, y) = loss([x, y]; θ_true, instance)
-	contour(X, Y, @. h(X', Y); color=:turbo, fill=true, xlabel="θ₁", ylabel="θ₂")
+	contour(X, Y, @. h(X', Y); color, fill=true, xlabel="θ₁", ylabel="θ₂")
 end
 
 # ╔═╡ b8a56131-28e1-44f2-9f88-a846ab7fdf4b
-ff(x, y) = Zygote.gradient(θ -> Pushforward(perturbed_precise, cost)(θ; θ_true, instance), [x, y])[1][2]
+ff(x, y) = -Zygote.gradient(θ -> Pushforward(perturbed, cost)(θ; θ_true, instance), [x, y])[1]
 
-# ╔═╡ 6546c243-761f-491f-b06e-4315816a9d37
-ff(θ[1], θ[2])
-
-# ╔═╡ 293dfb8a-8850-47e9-a39b-1a081eca6ef2
-contour(X, Y, @. ff(X', Y); color=:turbo, fill=true, xlabel="θ₁", ylabel="θ₂")
+# ╔═╡ 09f4cbc2-aad1-49f1-9ac4-12ad63c533d4
+meshgrid(x, y) = reim(complex.(x', y))
 
 # ╔═╡ 7c825571-a588-40d8-8810-f69bf77e6e0d
 begin
@@ -156,14 +430,27 @@ begin
 	plot!(fig, x -> -Pushforward(perturbed_precise, cost)([x, θ[2]]; θ_true, instance); label="loss")
 end
 
-# ╔═╡ 8cb16633-9d00-4067-8882-c35f99e9e65e
-plot()
+# ╔═╡ ff54e7f0-a1a6-4d4e-af93-911b0a687c6e
+XX, YY = meshgrid(range(-1, 1, length=10), range(-1, 1, length=10))
+
+# ╔═╡ 293dfb8a-8850-47e9-a39b-1a081eca6ef2
+begin
+	ZZZ = @. ff(XX, YY) ./ 10
+	uu = map(x -> x[1], ZZZ)
+	vv = map(x -> x[2], ZZZ)
+	contour(X, Y, @. h(X', Y); fill=true, xlabel="θ₁", ylabel="θ₂", color)
+	quiver!(XX, YY; quiver=(uu, vv))
+end
+
+# ╔═╡ 26530d3e-adeb-47f5-9998-ca1306d97f57
+md"## Training loop"
 
 # ╔═╡ d88a31db-995e-490d-9cd4-19b1d763a5c9
 begin
 model = deepcopy(initial_model)
 opt_state = Flux.setup(Adam(), model)
 loss_history = Float64[]
+gap_history = Float64[]
 for epoch in 1:100
 	total_loss = 0.0
 	for (; instance, x, θ_true, y_true) in dataset
@@ -175,6 +462,7 @@ for epoch in 1:100
 		total_loss += val
 	end
 	push!(loss_history, total_loss)
+	push!(gap_history, compute_gap(b, dataset, model, maximizer))
 end
 end
 
@@ -187,26 +475,43 @@ cost(y; θ_true)
 # ╔═╡ d76b3b76-8515-4cc6-8d02-407307b23ae8
 plot(loss_history)
 
-# ╔═╡ 4d1e3271-e3cc-4dde-8ab6-bf23c14e3c26
-compute_gap(b, dataset, initial_model, maximizer)
+# ╔═╡ 2ace0ac8-b5fd-4586-9e47-9400ef8b7d0e
+plot(-gap_history)
 
-# ╔═╡ 9bcbf3fc-87d0-4b43-b806-6a7711871092
-compute_gap(b, dataset, model, maximizer)
+# ╔═╡ 26c29834-e101-4245-b94a-c8a6d27956e7
+md"# Fenchel-Young loss: use it"
+
+# ╔═╡ 51fb6a9c-6f69-4c6b-97eb-74224b8c1bbf
+md"## Fenchel-Young loss"
 
 # ╔═╡ 2a5ff679-13b2-4eae-830f-8b0517d72fe1
 fyl = FenchelYoungLoss(perturbed)
 
-# ╔═╡ 8caf9868-b83a-436f-8350-ad79537f1f9d
+# ╔═╡ a75e1c26-0eca-4280-88b2-4a8fda1a8810
 begin
 	hh(x, y) = fyl([x, y], y_true; instance)
-	contour(X, Y, @. hh(X', Y); color=:turbo, fill=true, xlabel="θ₁", ylabel="θ₂")
+	contour(X, Y, @. hh(X', Y); color, fill=true, xlabel="θ₁", ylabel="θ₂")
 end
+
+# ╔═╡ 8caf9868-b83a-436f-8350-ad79537f1f9d
+begin
+	hhh(x, y) = -Zygote.gradient(θ -> fyl(θ, y_true; instance), [x, y])[1] ./ 10 
+	ZZ = @. hhh(XX, YY)
+	u = map(x -> x[1], ZZ)
+	v = map(x -> x[2], ZZ)
+	fig2 = contour(X, Y, @. hh(X', Y); fill=true, xlabel="θ₁", ylabel="θ₂", color)
+	quiver!(fig2, XX, YY; quiver=(u, v))
+end
+
+# ╔═╡ 477f5c2f-1287-4981-a245-5af79e8a4fe5
+md"## Training loop"
 
 # ╔═╡ a6056755-ed5b-4028-98c2-535b2df90c7d
 begin
 fyl_model = deepcopy(initial_model)
 fyl_opt_state = Flux.setup(Adam(), fyl_model)
 fyl_loss_history = Float64[]
+fyl_gap_history = Float64[]
 for epoch in 1:100
 	total_loss = 0.0
 	for (; instance, x, θ_true, y_true) in dataset
@@ -218,6 +523,7 @@ for epoch in 1:100
 		total_loss += val
 	end
 	push!(fyl_loss_history, total_loss)
+	push!(fyl_gap_history, compute_gap(b, dataset, fyl_model, maximizer))
 end
 end
 
@@ -225,28 +531,40 @@ end
 plot(fyl_loss_history)
 
 # ╔═╡ 4968deb4-dbe7-49f3-b719-d259304a38ff
+plot([-gap_history -fyl_gap_history]; label=["loss" "fyl"])
 
+# ╔═╡ bf138ef3-bb6c-4da1-9cb0-b27e63394849
+md"## Another loss: SPO+"
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 DecisionFocusedLearningBenchmarks = "2fbe496a-299b-4c81-bab5-c44dfc55cf20"
+DifferentiableExpectations = "fc55d66b-b2a8-4ccc-9d64-c0c2166ceb36"
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
 InferOpt = "4846b161-c94e-4150-8dac-c7ae193c601f"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
+LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MLUtils = "f1d291b0-491e-4a28-83b9-f70985020b54"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 DecisionFocusedLearningBenchmarks = "~0.2.3"
+DifferentiableExpectations = "~0.2.0"
 Flux = "~0.16.4"
+ForwardDiff = "~1.0.1"
 HiGHS = "~1.18.2"
 InferOpt = "~0.7.0"
 JuMP = "~1.26.0"
+LaTeXStrings = "~1.4.0"
+MLUtils = "~0.4.8"
 Plots = "~1.40.17"
 PlutoTeachingTools = "~0.4.1"
 PlutoUI = "~0.7.68"
@@ -259,7 +577,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "87ea696ca078c3ca7b24b1bc78a12c39b997fd83"
+project_hash = "32baecca91c976f9d5f7a5d92efee7c5d1adbe6c"
 
 [[deps.ASL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -3018,57 +3336,118 @@ version = "1.9.2+0"
 """
 
 # ╔═╡ Cell order:
+# ╟─df6e0f09-b95a-46a7-85c6-05243b7d16fb
 # ╠═54ddb5a5-8a96-4cb7-af3d-727e7247befd
 # ╟─05c355e3-3ec2-44cf-a8a7-bd5b001d3dac
+# ╠═812c8942-dbed-4cd0-9d7e-969a87b778b6
+# ╠═239a1bf0-9157-47da-9a98-b705f6c80980
+# ╠═cc433e81-6c00-4925-83eb-d17cfbba28c1
+# ╠═09ff5943-ff3c-4cf1-a04c-749989377f30
+# ╠═5b76a60c-5aab-4ac4-b605-bd70ea3a8e18
+# ╠═26804fd8-593a-45d9-9a4f-285f13090b61
+# ╠═83875d7c-b19c-4579-be47-9bdf720e9f7d
+# ╠═133ef754-12e0-4b7b-a6ba-2d7ee5bfee57
+# ╠═9737e917-c88b-478a-a410-c91640953368
+# ╟─8a2c085a-af1a-4556-a938-bf9ac1fc85e2
+# ╟─546724f0-f625-4743-b3f2-571763437499
+# ╠═625a7ecd-3a43-49f5-bbac-36a85bde8480
+# ╟─b4972541-6017-4336-b6f3-f727bc77a577
+# ╟─a8e6c1a3-f426-4cff-8c85-d4f54cf498e9
+# ╠═2876e48e-f802-48ed-999b-1c0a3a4ddcc8
 # ╠═b9ad8e94-621c-11f0-0426-7f7ab481572c
+# ╟─c376de40-1b7b-42be-916c-aafb5961145d
+# ╟─3645c5e0-d088-4db0-ba9e-ff1fcc55d533
+# ╠═763c72ee-12a7-48b6-866b-fc257a5c0f6e
+# ╟─23e18acb-cbd7-4485-8aba-aa4931f49fd4
+# ╠═00ea1f0e-41a0-4a52-8323-98d518f3995b
+# ╠═dd1ed688-4753-445d-8f19-f3f53eed35f3
+# ╠═bb301f6a-444f-4ef2-94a7-c6dae8e308c2
+# ╟─e043c78e-445b-4331-97a3-47a0278c4efc
+# ╠═f4898130-b52f-4e80-a087-451ff2a24cd3
+# ╠═3f2fa925-adc2-4539-84df-43d462b65c9d
 # ╠═7a8918b3-025c-448c-a159-5c7e307b570d
+# ╠═a19a277e-bc7c-4703-bbf4-12194d45f38c
 # ╠═b9b2a238-6628-45cf-b8c5-6463bf87cf0f
+# ╠═4d0a0ac0-47c7-4cf9-926b-2d15e05b4d60
+# ╠═931e3f3b-6cb0-400e-9cc2-a39336fe9ca7
+# ╠═561456a3-6041-4f06-9750-dd3e8506be03
 # ╠═3d131fbf-b2aa-4570-8764-e9c0a7ad072e
-# ╠═244c37e7-a009-43cf-b934-4667b0e6ff11
 # ╠═880950d5-4a1e-4d89-8b05-dbd06a1b9922
+# ╠═244c37e7-a009-43cf-b934-4667b0e6ff11
+# ╠═fc54fe59-a3b3-48b5-b935-f87ee197ae94
+# ╠═95e9e53b-374b-4520-a63a-a806bbca0cda
 # ╠═4bda061f-569d-440f-aa92-541ee4bd65c5
 # ╠═4193afab-0068-4e61-a7eb-16bcf43a56fc
 # ╠═34535fcc-e8a6-4ed6-9a99-f7a4314118b9
 # ╠═1dbe9048-64d1-4a95-881c-bf84128355e8
 # ╠═dabb7e3a-d4d4-4def-a6a3-1192503cbe7d
+# ╠═7261e014-de6a-4c69-93b7-07d5b1101d82
+# ╠═ce630418-9e51-4876-a078-1839ef9cf936
 # ╠═7614a60a-0fa6-45cf-bd41-cdc6ce70a120
+# ╠═ab40b942-9a36-48fc-9631-be3275e658b0
 # ╠═2a95baf0-dcc0-455b-a56a-4713388912f1
 # ╠═1d9be20f-8c93-47cc-bfa6-0c757823dc37
 # ╠═2515b1a6-4a2d-49ae-bd17-418b2c93cf08
-# ╠═3ce98992-e215-4fae-9434-c342fc27e92b
-# ╠═47dfb7f0-486f-4977-90fa-87fba16c74db
-# ╠═963c40ab-ca50-48a2-b90c-7f2b4b5cd6e1
-# ╠═d5bcaf34-a888-4699-944d-e183e24224f1
-# ╠═54a9a919-8fa2-4c1e-805b-5cce1508ca82
-# ╠═72e22ebb-fbda-4b6a-b4f6-e7ec1baacb87
+# ╠═129535b9-b6b7-484a-93e1-39b67770da7a
 # ╠═01355e11-bd28-48b0-8d56-08f809b4bdc9
 # ╠═a192579b-0e92-4ae0-8865-56d77a88f889
-# ╠═ab40b942-9a36-48fc-9631-be3275e658b0
+# ╠═8dcc4098-1b4d-4fe3-959d-7dcdc31c60b4
+# ╠═cfe25dab-f204-420f-8519-22fc3ef6f81b
+# ╠═4e71ff0f-0bc8-4c9e-8d90-c8c2d829ed99
+# ╠═eac5a14f-46c3-486a-af79-caa6dd9a04e0
+# ╠═094a8c13-16a8-43db-8267-b08683721d9e
+# ╠═18dafc47-273b-479b-9560-0485ffea64b0
+# ╟─73f196d5-be4d-4826-842e-738fab76b910
+# ╠═963c40ab-ca50-48a2-b90c-7f2b4b5cd6e1
+# ╟─2f638ae9-10b8-4f2c-ac3d-481deaebe63b
+# ╠═89cb2e20-3d9c-41a1-996e-8fa99664a35a
+# ╠═b333d3c6-2bea-4349-85fe-2a7dbd47f785
+# ╠═d5bcaf34-a888-4699-944d-e183e24224f1
+# ╠═54a9a919-8fa2-4c1e-805b-5cce1508ca82
+# ╟─38409078-f421-42f6-b416-aa0965c4ae41
 # ╠═de89de25-4ac3-4ef2-9fd9-eb2055afcdc9
 # ╠═028d396d-ee09-4357-a3f1-3628a0279967
 # ╠═602f43ac-cc53-4954-a427-8e6fe933c66f
 # ╠═e33c7730-1d9d-4f91-a46e-d5d17ac98dca
+# ╠═c90217ce-a29d-4757-bf6c-65ac5f55747d
+# ╠═f5f2a94b-9602-4843-901a-b5f836aadf8e
+# ╠═39179c93-70c3-46db-a64f-cbabc4a57652
+# ╠═8632db83-58d0-4cca-9cd1-e9c39d45ac6d
 # ╠═6fe5710a-acc6-4e08-b641-0a3c603bc148
 # ╠═1181340f-c8bc-4ae2-b75d-1aa4bf8b0dcc
 # ╠═dd572391-4c4d-4f78-90e4-176a95ea51f8
+# ╠═a3665206-b01a-4e29-8f08-8c6e12de6095
+# ╠═7b9fe9bc-5b20-44d6-9965-77525591070a
+# ╠═3038f5c0-ad43-4571-8e91-7509b81ca18e
+# ╠═62d1655c-b664-49a8-b4c5-b16c76a5df0c
+# ╠═7b133396-3cf8-4832-b29d-85fb88b1e680
+# ╠═7b03e225-cbc7-4888-be25-a1d7a1123a43
+# ╠═d9a5e173-fb8e-4c1a-8964-6ac5c3190e53
+# ╠═66fe68b4-6cef-4f10-bda8-0b9d3c135331
+# ╠═8b65bc69-ffac-4e3f-abf7-7fdaf31cd5af
+# ╠═222cdfe9-c720-4103-8ca1-db9b5d8b1cc3
+# ╠═e3b9d3e2-b413-4421-8df9-1f3e5990fcf9
 # ╠═11aa9fff-b7ff-414e-8733-746f268727f1
-# ╠═03087725-c499-421e-aa04-f083436d8f21
-# ╠═c90217ce-a29d-4757-bf6c-65ac5f55747d
 # ╠═9e663a4f-9a43-4a02-a332-2ab7d919dc42
 # ╠═b8a56131-28e1-44f2-9f88-a846ab7fdf4b
-# ╠═6546c243-761f-491f-b06e-4315816a9d37
+# ╠═09f4cbc2-aad1-49f1-9ac4-12ad63c533d4
 # ╠═293dfb8a-8850-47e9-a39b-1a081eca6ef2
 # ╠═7c825571-a588-40d8-8810-f69bf77e6e0d
-# ╠═8cb16633-9d00-4067-8882-c35f99e9e65e
-# ╠═8caf9868-b83a-436f-8350-ad79537f1f9d
+# ╠═ff54e7f0-a1a6-4d4e-af93-911b0a687c6e
+# ╠═26530d3e-adeb-47f5-9998-ca1306d97f57
 # ╠═d88a31db-995e-490d-9cd4-19b1d763a5c9
-# ╠═61e9ddca-6485-420b-922a-d14fb1b130d9
 # ╠═d76b3b76-8515-4cc6-8d02-407307b23ae8
-# ╠═4d1e3271-e3cc-4dde-8ab6-bf23c14e3c26
-# ╠═9bcbf3fc-87d0-4b43-b806-6a7711871092
+# ╠═2ace0ac8-b5fd-4586-9e47-9400ef8b7d0e
+# ╠═26c29834-e101-4245-b94a-c8a6d27956e7
+# ╠═51fb6a9c-6f69-4c6b-97eb-74224b8c1bbf
 # ╠═2a5ff679-13b2-4eae-830f-8b0517d72fe1
+# ╠═a75e1c26-0eca-4280-88b2-4a8fda1a8810
+# ╠═8caf9868-b83a-436f-8350-ad79537f1f9d
+# ╠═61e9ddca-6485-420b-922a-d14fb1b130d9
+# ╟─477f5c2f-1287-4981-a245-5af79e8a4fe5
 # ╠═a6056755-ed5b-4028-98c2-535b2df90c7d
 # ╠═4298b2f6-43e1-470a-b8b8-40ba58710995
 # ╠═4968deb4-dbe7-49f3-b719-d259304a38ff
+# ╠═bf138ef3-bb6c-4da1-9cb0-b27e63394849
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

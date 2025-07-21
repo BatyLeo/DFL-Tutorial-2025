@@ -19,40 +19,37 @@ end
 # ╔═╡ 54ddb5a5-8a96-4cb7-af3d-727e7247befd
 using PlutoUI, PlutoTeachingTools
 
+# ╔═╡ 7b03e225-cbc7-4888-be25-a1d7a1123a43
+using LaTeXStrings: @L_str
+
+# ╔═╡ 4ea4fe5c-79fa-446f-9701-807d3fb1b482
+using LinearAlgebra: norm
+
+# ╔═╡ 7b133396-3cf8-4832-b29d-85fb88b1e680
+using Statistics: mean
+
+# ╔═╡ d9a5e173-fb8e-4c1a-8964-6ac5c3190e53
+using DifferentiableExpectations
+
 # ╔═╡ 2876e48e-f802-48ed-999b-1c0a3a4ddcc8
 using InferOpt
 
 # ╔═╡ b9ad8e94-621c-11f0-0426-7f7ab481572c
 using DecisionFocusedLearningBenchmarks
 
-# ╔═╡ 4d0a0ac0-47c7-4cf9-926b-2d15e05b4d60
-using MLUtils
+# ╔═╡ 01355e11-bd28-48b0-8d56-08f809b4bdc9
+using Flux
+
+# ╔═╡ 1d9be20f-8c93-47cc-bfa6-0c757823dc37
+using LinearAlgebra: dot
 
 # ╔═╡ 2a95baf0-dcc0-455b-a56a-4713388912f1
 using JuMP, HiGHS
 
-# ╔═╡ 1d9be20f-8c93-47cc-bfa6-0c757823dc37
-using LinearAlgebra: dot, norm
-
-# ╔═╡ 01355e11-bd28-48b0-8d56-08f809b4bdc9
-using Flux
-
 # ╔═╡ 963c40ab-ca50-48a2-b90c-7f2b4b5cd6e1
 using Zygote
 
-# ╔═╡ 89cb2e20-3d9c-41a1-996e-8fa99664a35a
-using ForwardDiff
-
-# ╔═╡ 7b133396-3cf8-4832-b29d-85fb88b1e680
-using Statistics: mean
-
-# ╔═╡ 7b03e225-cbc7-4888-be25-a1d7a1123a43
-using LaTeXStrings: @L_str
-
-# ╔═╡ d9a5e173-fb8e-4c1a-8964-6ac5c3190e53
-using DifferentiableExpectations
-
-# ╔═╡ 61e9ddca-6485-420b-922a-d14fb1b130d9
+# ╔═╡ a7d03904-3c69-4553-9a76-7fb9df80dbbd
 using Plots
 
 # ╔═╡ df6e0f09-b95a-46a7-85c6-05243b7d16fb
@@ -65,253 +62,39 @@ ChooseDisplayMode()
 color = :inferno;
 
 # ╔═╡ 239a1bf0-9157-47da-9a98-b705f6c80980
-TableOfContents(depth=3)
+TableOfContents(depth=2)
 
 # ╔═╡ cc433e81-6c00-4925-83eb-d17cfbba28c1
 md"TODO: put all slider definitions here"
 
 # ╔═╡ 09ff5943-ff3c-4cf1-a04c-749989377f30
-set_angle_oracle = md"""
-angle = $(@bind angle_oracle Slider(0:0.01:2π; default=π, show_value=false))
-""";
-
-# ╔═╡ 5b76a60c-5aab-4ac4-b605-bd70ea3a8e18
-set_angle_perturbed = md"""
-angle = $(@bind angle_perturbed Slider(0:0.01:2π; default=π, show_value=false))
+angle_slider = md"""
+angle = $(@bind angle Slider(0:0.01:2π; default=π, show_value=false))
 """;
 
 # ╔═╡ 26804fd8-593a-45d9-9a4f-285f13090b61
-set_nb_samples_perturbed = md"""
-samples = $(@bind nb_samples_perturbed Slider(1:500; default=10, show_value=true))
-""";
+nb_samples_slider = md"""
+samples = $(@bind nb_samples Slider(1:500; default=10, show_value=true))
+"""
 
 # ╔═╡ 83875d7c-b19c-4579-be47-9bdf720e9f7d
-set_epsilon_perturbed = md"""
-epsilon = $(@bind ε Slider(0.0:0.02:1.0; default=0.0, show_value=true))
-""";
+ε_slider = md"""
+ε = $(@bind ε Slider(0.0:0.02:1.0; default=0.0, show_value=true))
+"""
 
 # ╔═╡ 133ef754-12e0-4b7b-a6ba-2d7ee5bfee57
-set_plot_probadist_perturbed = md"""
+probadist_checkbox = md"""
 Plot probability distribution? $(@bind plot_probadist_perturbed CheckBox())
-""";
-
-# ╔═╡ 9737e917-c88b-478a-a410-c91640953368
-md"# Introduction"
-
-# ╔═╡ 8a2c085a-af1a-4556-a938-bf9ac1fc85e2
-md"""
-**Goals of this session**:
-- Teach you how to implement and train a DFL policy in practice
-- Generic approach that can be applied to most problems
-- Showcase Julia programming, direct comparison with Python at the end
-- Give you some intuition on why things work or not
 """
 
-# ╔═╡ 546724f0-f625-4743-b3f2-571763437499
-md"## A few words about Julia"
+# ╔═╡ 5564b42a-494a-4f8e-adc6-6331b1070d41
+x_slider = @bind x_max NumberField(1:0.1:10, default=1)
 
-# ╔═╡ 625a7ecd-3a43-49f5-bbac-36a85bde8480
-md"""
-- how many of you are already familiar with Julia?
-- how to install
-- what is a Pluto notebook and how to run it
-- where to find this notebook (qr code + url)
-"""
+# ╔═╡ 4430cecd-cc91-4df3-a983-8156e618a141
+y_slider = @bind y_max NumberField(1:0.1:10, default=1)
 
-# ╔═╡ b4972541-6017-4336-b6f3-f727bc77a577
-md"## JuliaDecisionFocusedLearning"
-
-# ╔═╡ a8e6c1a3-f426-4cff-8c85-d4f54cf498e9
-md"""
-- github org link + image
-- main package is InferOpt.jl
-- DFLBench for easy benchmark problems
-"""
-
-# ╔═╡ c376de40-1b7b-42be-916c-aafb5961145d
-md"# Recap on Decision-Focused Learning"
-
-# ╔═╡ 3645c5e0-d088-4db0-ba9e-ff1fcc55d533
-md"## General setting"
-
-# ╔═╡ 763c72ee-12a7-48b6-866b-fc257a5c0f6e
-md"""
-- pipeline
-- learning problem, find w such that policy gives a good solution of some cost function
-- two main paradigms: supervised and non-supervised
-"""
-
-# ╔═╡ 23e18acb-cbd7-4485-8aba-aa4931f49fd4
-md"## Etc."
-
-# ╔═╡ 00ea1f0e-41a0-4a52-8323-98d518f3995b
-md"## Needed component to build a policy"
-
-# ╔═╡ dd1ed688-4753-445d-8f19-f3f53eed35f3
-md"""
-- statistical model $\varphi_w$
-- CO algorithm $f$
-"""
-
-# ╔═╡ bb301f6a-444f-4ef2-94a7-c6dae8e308c2
-md"## Needed components to train a policy"
-
-# ╔═╡ e043c78e-445b-4331-97a3-47a0278c4efc
-md"# 2-dimensional toy example"
-
-# ╔═╡ f4898130-b52f-4e80-a087-451ff2a24cd3
-md"## Problem statement"
-
-# ╔═╡ 3f2fa925-adc2-4539-84df-43d462b65c9d
-md"Y(x) is small, finite and 2-dimensional"
-
-# ╔═╡ 7a8918b3-025c-448c-a159-5c7e307b570d
-b = Argmax2DBenchmark(; polytope_vertex_range=5:8)
-
-# ╔═╡ a19a277e-bc7c-4703-bbf4-12194d45f38c
-md"## Dataset creation"
-
-# ╔═╡ b9b2a238-6628-45cf-b8c5-6463bf87cf0f
-dataset = generate_dataset(b, 100; seed=0)
-
-# ╔═╡ 931e3f3b-6cb0-400e-9cc2-a39336fe9ca7
-train_dataset, test_dataset = splitobs(dataset; at=0.5)
-
-# ╔═╡ 561456a3-6041-4f06-9750-dd3e8506be03
-md"## Some visualization"
-
-# ╔═╡ 3d131fbf-b2aa-4570-8764-e9c0a7ad072e
-index_slider = @bind index NumberField(1:length(dataset))
-
-# ╔═╡ 244c37e7-a009-43cf-b934-4667b0e6ff11
-sample = dataset[index]
-
-# ╔═╡ 880950d5-4a1e-4d89-8b05-dbd06a1b9922
-(; x, instance, θ_true, y_true) = sample
-
-# ╔═╡ fc54fe59-a3b3-48b5-b935-f87ee197ae94
-plot_data(b, sample)
-
-# ╔═╡ 95e9e53b-374b-4520-a63a-a806bbca0cda
-md"## Visu 2"
-
-# ╔═╡ 4bda061f-569d-440f-aa92-541ee4bd65c5
-θ_true
-
-# ╔═╡ 4193afab-0068-4e61-a7eb-16bcf43a56fc
-angle_slider = @bind α Slider(0:0.01:2π; show_value=true, default=π)
-
-# ╔═╡ 34535fcc-e8a6-4ed6-9a99-f7a4314118b9
-θ = [cos(α), sin(α)] ./ 2
-
-# ╔═╡ 1dbe9048-64d1-4a95-881c-bf84128355e8
-plot_data(b, sample; θ_true=θ)
-
-# ╔═╡ dabb7e3a-d4d4-4def-a6a3-1192503cbe7d
-Columns(angle_slider, index_slider)
-
-# ╔═╡ 7261e014-de6a-4c69-93b7-07d5b1101d82
-md"# Building the policy"
-
-# ╔═╡ ce630418-9e51-4876-a078-1839ef9cf936
-md"## the maximizer can be any Julia function"
-
-# ╔═╡ 7614a60a-0fa6-45cf-bd41-cdc6ce70a120
-f = generate_maximizer(b)
-
-# ╔═╡ ab40b942-9a36-48fc-9631-be3275e658b0
-maximizer(θ; instance, kwargs...) = f(θ; instance)
-
-# ╔═╡ 2515b1a6-4a2d-49ae-bd17-418b2c93cf08
-function f_mip(θ; instance)
-	N = length(instance)
-	model = Model(HiGHS.Optimizer)
-	set_silent(model)
-	@variable(model, y[1:N], Bin)
-	@constraint(model, sum(y) == 1)
-	@objective(model, Max, sum(dot(θ, instance[i]) * y[i] for i in 1:N))
-	optimize!(model)
-	return instance[argmax(value.(y))]
-end
-
-# ╔═╡ 129535b9-b6b7-484a-93e1-39b67770da7a
-md"## Statistical model $\varphi_w$"
-
-# ╔═╡ a192579b-0e92-4ae0-8865-56d77a88f889
-initial_model = Dense(5 => 2; bias=false)
-
-# ╔═╡ 8dcc4098-1b4d-4fe3-959d-7dcdc31c60b4
-initial_model.weight
-
-# ╔═╡ cfe25dab-f204-420f-8519-22fc3ef6f81b
-md"## Full policy evaluation"
-
-# ╔═╡ 4e71ff0f-0bc8-4c9e-8d90-c8c2d829ed99
-initial_policy(x; instance) = f(initial_model(x); instance)
-
-# ╔═╡ eac5a14f-46c3-486a-af79-caa6dd9a04e0
-initial_policy(x; instance)
-
-# ╔═╡ 094a8c13-16a8-43db-8267-b08683721d9e
-b.encoder[1].weight
-
-# ╔═╡ 18dafc47-273b-479b-9560-0485ffea64b0
-md"## Let's try differentiating through the policy"
-
-# ╔═╡ 73f196d5-be4d-4826-842e-738fab76b910
-md"Backward automatic differentiation:"
-
-# ╔═╡ 2f638ae9-10b8-4f2c-ac3d-481deaebe63b
-md"Forward automatic differentiation:"
-
-# ╔═╡ b333d3c6-2bea-4349-85fe-2a7dbd47f785
-md"Computing the Jacobian matrix of $f$:"
-
-# ╔═╡ d5bcaf34-a888-4699-944d-e183e24224f1
-Zygote.jacobian(θ -> f(θ; instance), θ)
-
-# ╔═╡ 54a9a919-8fa2-4c1e-805b-5cce1508ca82
-Zygote.jacobian(θ -> f_mip(θ; instance), θ)
-
-# ╔═╡ 38409078-f421-42f6-b416-aa0965c4ae41
-md"TODO: forward diff gradient computations"
-
-# ╔═╡ 028d396d-ee09-4357-a3f1-3628a0279967
-cost(y; θ_true, kwargs...) = -dot(θ_true, y)
-
-# ╔═╡ e33c7730-1d9d-4f91-a46e-d5d17ac98dca
-cost(y_true; θ_true)
-
-# ╔═╡ c90217ce-a29d-4757-bf6c-65ac5f55747d
-begin
-	X, Y = range(-1, 1, length=200), range(-1, 1, length=200);
-	g(x, y) = dot(θ_true, maximizer([x, y]; instance))
-	Z = @. g(X', Y);
-	contour(X, Y, Z; color, fill=true, xlabel="θ₁", ylabel="θ₂")
-end
-
-# ╔═╡ f5f2a94b-9602-4843-901a-b5f836aadf8e
-plot(x -> dot(θ_true, maximizer([x, θ[2]]; instance)))
-
-# ╔═╡ 39179c93-70c3-46db-a64f-cbabc4a57652
-md"# REINFORCE: always ''works'' on paper"
-
-# ╔═╡ 8632db83-58d0-4cca-9cd1-e9c39d45ac6d
-md"## Regularizing the CO algorithm"
-
-# ╔═╡ 6fe5710a-acc6-4e08-b641-0a3c603bc148
-perturbed = PerturbedAdditive(maximizer; nb_samples=200, ε=0.1, threaded=false, variance_reduction=false)
-
-# ╔═╡ 1181340f-c8bc-4ae2-b75d-1aa4bf8b0dcc
-perturbed_precise = PerturbedAdditive(maximizer; nb_samples=1000, ε=0.1, threaded=false)
-
-# ╔═╡ dd572391-4c4d-4f78-90e4-176a95ea51f8
-perturbed(θ; instance)
-
-# ╔═╡ a3665206-b01a-4e29-8f08-8c6e12de6095
-compute_probability_distribution(
-	perturbed, θ; instance,
-)
+# ╔═╡ 83ce94e8-a564-4f73-a6b1-1e53365f53a3
+grid_size_slider = @bind grid_size NumberField(50:500, default=200)
 
 # ╔═╡ 7b9fe9bc-5b20-44d6-9965-77525591070a
 function get_angle(v)
@@ -389,33 +172,392 @@ function compress_distribution!(
     return probadist
 end;
 
-# ╔═╡ 8b65bc69-ffac-4e3f-abf7-7fdaf31cd5af
-TwoColumn(set_angle_perturbed, set_epsilon_perturbed)
+# ╔═╡ 9737e917-c88b-478a-a410-c91640953368
+md"# I - Introduction"
 
-# ╔═╡ 222cdfe9-c720-4103-8ca1-db9b5d8b1cc3
-TwoColumn(set_nb_samples_perturbed, set_plot_probadist_perturbed)
+# ╔═╡ 8a2c085a-af1a-4556-a938-bf9ac1fc85e2
+md"""
+**Goals of this session**:
+- Show you how to implement and train a DFL policy in practice
+- Generic approach that can be applied to most problems
+- Showcase Julia programming, direct comparison with Python at the end
+- Give you some intuition on why things can work or not in practice
+"""
 
-# ╔═╡ e3b9d3e2-b413-4421-8df9-1f3e5990fcf9
-let
-	perturbed_layer = PerturbedAdditive(maximizer; nb_samples=200, ε, threaded=false, variance_reduction=false)
-	θ = 0.5 .* [cos(angle_perturbed), sin(angle_perturbed)]
+# ╔═╡ 546724f0-f625-4743-b3f2-571763437499
+md"## The Julia programming language"
+
+# ╔═╡ e0be3dc5-0d5d-4e3c-89ce-cba093df586c
+Resource(
+	"https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Julia_Programming_Language_Logo.svg/800px-Julia_Programming_Language_Logo.svg.png",
+	:width => 400
+)
+
+# ╔═╡ 625a7ecd-3a43-49f5-bbac-36a85bde8480
+md"""
+- [https://julialang.org/](https://julialang.org/)
+- [Pluto notebooks](https://plutojl.org/) $\approx$ [Marimo notebooks](https://marimo.io/)
+"""
+
+# ╔═╡ b4972541-6017-4336-b6f3-f727bc77a577
+md"## JuliaDecisionFocusedLearning"
+
+# ╔═╡ a8e6c1a3-f426-4cff-8c85-d4f54cf498e9
+md"""
+- Open source Julia packages for decision-focused learning
+- GitHub organization: [https://github.com/JuliaDecisionFocusedLearning](https://github.com/JuliaDecisionFocusedLearning)
+"""
+
+# ╔═╡ 96151b9c-3a11-4d21-ba5a-c1045b8f7915
+md"## InferOpt.jl"
+
+# ╔═╡ ec883526-2bf0-4334-8849-70b476579c45
+md"""
+- GitHub repository: [https://github.com/JuliaDecisionFocusedLearning/InferOpt.jl](https://github.com/JuliaDecisionFocusedLearning/InferOpt.jl)
+- Documentation: [https://juliadecisionfocusedlearning.github.io/InferOpt.jl/stable/](https://juliadecisionfocusedlearning.github.io/InferOpt.jl/stable/)
+- Core package of the ecosystem
+- Implements building blocks for building differentiable CO layers and loss functions
+- Generic implementation
+"""
+
+# ╔═╡ 77ec8f1a-4d68-4417-aa0c-19d974f00d3d
+md"## DecisionFocusedLearningBenchmarks.jl"
+
+# ╔═╡ 4cb6c397-e519-4428-8a4e-b67b19f4f381
+md"""
+- GitHub repository: [https://github.com/JuliaDecisionFocusedLearning/DecisionFocusedLearningBenchmarks.jl](https://github.com/JuliaDecisionFocusedLearning/DecisionFocusedLearningBenchmarks.jl)
+- Documentation: [https://juliadecisionfocusedlearning.github.io/DecisionFocusedLearningBenchmarks.jl/stable/](https://juliadecisionfocusedlearning.github.io/DecisionFocusedLearningBenchmarks.jl/stable/)
+- Implementation of benchmark problems
+- Generic interface
+"""
+
+# ╔═╡ c376de40-1b7b-42be-916c-aafb5961145d
+md"# II - Recap on Decision-Focused Learning"
+
+# ╔═╡ 3645c5e0-d088-4db0-ba9e-ff1fcc55d533
+md"## General setting"
+
+# ╔═╡ 60c2bbbe-50f3-4757-ae4e-5630c3f8e2cb
+md"Parametrized **policy** $\pi_w$:"
+
+# ╔═╡ f4dc3271-e14e-4b8a-adc4-6973b09d8682
+md"""
+```math
+\xrightarrow[\text{$x$}]{\text{Instance}}
+\fbox{$\varphi_w$}
+\xrightarrow[\text{$\theta$}]{\text{Objective}}
+\fbox{$f$}
+\xrightarrow[\text{$y$}]{\text{Solution}}
+```
+"""
+
+# ╔═╡ 7f7e6084-7c80-4b22-94ea-a6468f7f1e4c
+md"""
+**Notations**:
+- Instance: $x\in\mathcal{X}$
+- Statistical model: $\varphi_w$
+- Combinatorial Optimization algorithm $f\colon\underset{y \in \mathcal{Y}(x)}{\mathrm{argmax}} ~ \theta^\top y$: 
+- Solution: $y\in\mathcal{Y}(x)$, combonatorial finite set
+"""
+
+# ╔═╡ 602928c8-1d24-4a33-87b3-b926c4f0b830
+md"""
+**Learning problem**:  find w such that policy gives a good solution of some cost function $c$.
+"""
+
+# ╔═╡ 8074c3f6-6bc2-4350-85e3-fac86629e314
+md"## Two main settings"
+
+# ╔═╡ a6341d9b-e426-4a0c-8bc0-bf872efd71cd
+Columns(md"### Risk minimization", md"### Supervised learning")
+
+# ╔═╡ 6d829964-d8c0-4194-9a00-0700845f4612
+Columns(md"""
+Dataset:
+
+$\mathcal{D} = \{x_1, \dots, x_n\}$
+
+Learning problem:
+
+$\min_w \sum_{i=1}^n c(f(\varphi_w(x_i)))$
+""",
+md"""
+Dataset:
+
+$\mathcal{D} = \{(x_1, \bar{y}_1), \dots, (x_n, \bar{y}_n)\}$
+
+Learning problem:
+
+$\min_w \sum_{i=1}^n \mathcal{L}(\varphi_w(x_i), \bar{y}_i)$
+"""
+)
+
+# ╔═╡ 00ea1f0e-41a0-4a52-8323-98d518f3995b
+md"## What to implement?"
+
+# ╔═╡ 93892e53-69ce-49d9-b7f4-61d68847226d
+Columns(
+md"### Building the policy",
+md"### Training the policy"
+)
+
+# ╔═╡ 2f68fedf-1458-4df1-8957-f918850d5a22
+Columns(
+md"""
+- statistical model $\varphi_w$
+- CO algorithm $f$
+""",
+md"""
+- dataset
+- differentiable loss function
+""",
+)
+
+# ╔═╡ e043c78e-445b-4331-97a3-47a0278c4efc
+md"# III - Two-dimensional toy example"
+
+# ╔═╡ f4898130-b52f-4e80-a087-451ff2a24cd3
+md"## Problem statement"
+
+# ╔═╡ 3f2fa925-adc2-4539-84df-43d462b65c9d
+md"""
+- Instances are encoded by a feature vector $x\in\mathbb{R}^5$
+- Feasible sets ``\mathcal{Y}(x)`` is small, finite: vertices of a two-dimensional polygon
+"""
+
+# ╔═╡ 7a8918b3-025c-448c-a159-5c7e307b570d
+b = Argmax2DBenchmark(; polytope_vertex_range=6:8)
+
+# ╔═╡ a19a277e-bc7c-4703-bbf4-12194d45f38c
+md"## Dataset creation"
+
+# ╔═╡ b9b2a238-6628-45cf-b8c5-6463bf87cf0f
+dataset = generate_dataset(b, 100; seed=0)
+
+# ╔═╡ ffbd1d2b-d6e4-436c-924e-42092a03e7bc
+index_slider = md"index = $(@bind index NumberField(1:length(dataset)))"
+
+# ╔═╡ 931e3f3b-6cb0-400e-9cc2-a39336fe9ca7
+train_dataset, test_dataset = dataset[1:50], dataset[51:100]
+
+# ╔═╡ 561456a3-6041-4f06-9750-dd3e8506be03
+md"## Data visualization"
+
+# ╔═╡ 3d131fbf-b2aa-4570-8764-e9c0a7ad072e
+index_slider
+
+# ╔═╡ 244c37e7-a009-43cf-b934-4667b0e6ff11
+sample = dataset[index]
+
+# ╔═╡ 880950d5-4a1e-4d89-8b05-dbd06a1b9922
+(; x, instance, θ_true, y_true) = sample
+
+# ╔═╡ e95b6f17-18be-4fa9-b72f-fbec6054c1fe
+function plot_perturbed(perturbed_layer)
+	θ = 0.5 .* [cos(angle), sin(angle)]
 	probadist = compute_probability_distribution(
 		perturbed_layer, θ; instance,
 	)
 	compress_distribution!(probadist)
-	pl = plot_data(b, sample; θ_true=θ)
+	pl = plot_data(b, sample; θ=θ)
 	plot_probadist_perturbed && plot_distribution!(pl, probadist)
 	plot_expectation!(pl, probadist)
-	pl
 end
+
+# ╔═╡ fc54fe59-a3b3-48b5-b935-f87ee197ae94
+fig = plot_data(b, sample)
+
+# ╔═╡ 7261e014-de6a-4c69-93b7-07d5b1101d82
+md"# IV - Building the policy"
+
+# ╔═╡ 129535b9-b6b7-484a-93e1-39b67770da7a
+md"## Statistical model $\varphi_w$"
+
+# ╔═╡ a192579b-0e92-4ae0-8865-56d77a88f889
+initial_model = Dense(5 => 2; bias=false)
+
+# ╔═╡ 8dcc4098-1b4d-4fe3-959d-7dcdc31c60b4
+initial_model.weight
+
+# ╔═╡ 094a8c13-16a8-43db-8267-b08683721d9e
+b.encoder.weight
+
+# ╔═╡ dc04f6f1-18f8-4a0b-94d9-11bdd4ea2e06
+grads = Flux.gradient(initial_model) do m
+	m(x)[1]
+end
+
+# ╔═╡ ce630418-9e51-4876-a078-1839ef9cf936
+md"## CO algorithm can be any Julia function"
+
+# ╔═╡ dbd4bbab-c889-49bd-a032-7d4b53f2f7ac
+md"""
+$f\colon\theta\mapsto\arg\max_{y\in\mathcal{Y}(x)} \theta^\top y$
+"""
+
+# ╔═╡ 8410ad91-aea9-4e06-b4d3-d19d4fde5c18
+warning_box(md"""
+- ``f`` is assumed to be a maximizer
+- it takes ``\theta`` as its only argument
+- can take any number of extra keyword arguments
+- outputs the argmax
+""")
+
+# ╔═╡ e5dcf2fe-c044-4ba9-b220-4eb5b6d71d2a
+md"### Basic Julia function"
+
+# ╔═╡ 2b5af285-6838-423d-8ec1-f3d2f386cf67
+function f(θ; instance, kwargs...)
+	return instance[argmax(dot(θ, v) for v in instance)]
+end
+
+# ╔═╡ b0630fec-9081-43df-8f92-43dab3bf1341
+md"### MIP"
+
+# ╔═╡ 2515b1a6-4a2d-49ae-bd17-418b2c93cf08
+function f_mip(θ; instance, kwargs...)
+	N = length(instance)
+	model = Model(HiGHS.Optimizer)
+	set_silent(model)
+	@variable(model, y[1:N], Bin)
+	@constraint(model, sum(y) == 1)
+	@objective(model, Max, sum(dot(θ, instance[i]) * y[i] for i in 1:N))
+	optimize!(model)
+	return instance[argmax(value.(y))]
+end
+
+# ╔═╡ 95e9e53b-374b-4520-a63a-a806bbca0cda
+md"## Maximizer visualization"
+
+# ╔═╡ df75d680-e4d8-4a3e-940a-87d317bdfd2c
+angle
+
+# ╔═╡ 34535fcc-e8a6-4ed6-9a99-f7a4314118b9
+θ = [cos(angle), sin(angle)] ./ 2
+
+# ╔═╡ 1dbe9048-64d1-4a95-881c-bf84128355e8
+plot_data(b, sample; θ)
+
+# ╔═╡ dabb7e3a-d4d4-4def-a6a3-1192503cbe7d
+Columns(angle_slider, index_slider)
+
+# ╔═╡ 18dafc47-273b-479b-9560-0485ffea64b0
+md"## Differentiating through the policy"
+
+# ╔═╡ d5bcaf34-a888-4699-944d-e183e24224f1
+Zygote.jacobian(θ -> f(θ; instance), θ)
+
+# ╔═╡ 54a9a919-8fa2-4c1e-805b-5cce1508ca82
+# ╠═╡ disabled = true
+#=╠═╡
+Zygote.jacobian(θ -> f_mip(θ; instance), θ)
+  ╠═╡ =#
+
+# ╔═╡ cfe25dab-f204-420f-8519-22fc3ef6f81b
+md"## Full policy"
+
+# ╔═╡ 4e71ff0f-0bc8-4c9e-8d90-c8c2d829ed99
+initial_policy(x; instance) = f(initial_model(x); instance)
+
+# ╔═╡ eac5a14f-46c3-486a-af79-caa6dd9a04e0
+initial_policy(x; instance)
+
+# ╔═╡ f47b9102-222f-4068-b48a-ed57d81f2422
+md"""### Black-box cost function to minimize"""
+
+# ╔═╡ 028d396d-ee09-4357-a3f1-3628a0279967
+cost(y; θ_true, kwargs...) = -dot(θ_true, y)
+
+# ╔═╡ de89de25-4ac3-4ef2-9fd9-eb2055afcdc9
+y = f(initial_model(x); instance)
+
+# ╔═╡ 602f43ac-cc53-4954-a427-8e6fe933c66f
+cost(y; θ_true)
+
+# ╔═╡ e33c7730-1d9d-4f91-a46e-d5d17ac98dca
+cost(y_true; θ_true)
+
+# ╔═╡ 2d7f8095-cf96-413d-a3d4-18c78488dbfe
+md"## Cost visualization"
+
+# ╔═╡ ac39ca94-335d-4228-a4df-61d889ba81a9
+Columns(x_slider, y_slider, grid_size_slider)
+
+# ╔═╡ 386170ef-9c27-4a94-8dd1-ec16ff92fc59
+X, Y = range(-x_max, x_max, length=grid_size), range(-y_max, y_max, length=grid_size);
+
+# ╔═╡ c90217ce-a29d-4757-bf6c-65ac5f55747d
+let
+	g(x, y) = cost(f([x, y]; instance); θ_true)
+	Z = @. g(X', Y);
+	contour(X, Y, Z; color, fill=true, xlabel="θ₁", ylabel="θ₂")
+end
+
+# ╔═╡ e1c9a5a8-811f-4a02-add8-3a54af5e37dc
+angle_slider
+
+# ╔═╡ f5f2a94b-9602-4843-901a-b5f836aadf8e
+plot(x -> cost(f([x, θ[2]]; instance); θ_true))
+
+# ╔═╡ 39179c93-70c3-46db-a64f-cbabc4a57652
+md"# V - Risk minimization"
+
+# ╔═╡ 8632db83-58d0-4cca-9cd1-e9c39d45ac6d
+md"## Regularizing the CO algorithm"
+
+# ╔═╡ 86f95530-b744-4dbe-b006-232bce4cc6e6
+md"""
+```math
+\hat{f}(\theta) = \mathbb{E}_Z [\arg\max_{y\in\mathcal{Y}(x)} (\theta + \varepsilon Z)^\top y]
+```
+
+with ``\varepsilon\in\mathbb{R}_+, Z\sim\mathcal{N}(0, 1)``
+"""
+
+# ╔═╡ e07581fb-1372-46d5-8671-11b4a5381e51
+Columns(nb_samples_slider, ε_slider)
+
+# ╔═╡ 6fe5710a-acc6-4e08-b641-0a3c603bc148
+perturbed = PerturbedAdditive(
+	f; nb_samples=nb_samples, ε=ε, threaded=true, variance_reduction=false
+)
+
+# ╔═╡ 3418e62f-30bf-4965-a06b-1753e63c5262
+perturbed_variance_reduction = PerturbedAdditive(
+	f; nb_samples=nb_samples, ε=ε, threaded=false, variance_reduction=true
+)
+
+# ╔═╡ 1181340f-c8bc-4ae2-b75d-1aa4bf8b0dcc
+perturbed_precise = PerturbedAdditive(f; nb_samples=1000, ε=ε, threaded=false)
+
+# ╔═╡ dd572391-4c4d-4f78-90e4-176a95ea51f8
+perturbed(θ; instance)
+
+# ╔═╡ 8b65bc69-ffac-4e3f-abf7-7fdaf31cd5af
+Columns(angle_slider, ε_slider)
+
+# ╔═╡ 222cdfe9-c720-4103-8ca1-db9b5d8b1cc3
+Columns(nb_samples_slider, probadist_checkbox)
+
+# ╔═╡ e3b9d3e2-b413-4421-8df9-1f3e5990fcf9
+let
+	plot_perturbed(PerturbedAdditive(f; nb_samples=200, ε, threaded=false, variance_reduction=false))
+end
+
+# ╔═╡ e491bc7e-8f50-454d-aeed-d553a9c94b77
+nb_samples_slider
 
 # ╔═╡ 11aa9fff-b7ff-414e-8733-746f268727f1
 loss = Pushforward(perturbed, cost)
 
+# ╔═╡ 8bf1d8a5-41a0-4334-a313-93086e896b45
+loss_variance_reduction = Pushforward(perturbed_variance_reduction, cost)
+
 # ╔═╡ 9e663a4f-9a43-4a02-a332-2ab7d919dc42
-begin
-	h(x, y) = loss([x, y]; θ_true, instance)
-	contour(X, Y, @. h(X', Y); color, fill=true, xlabel="θ₁", ylabel="θ₂")
+let
+	g(x, y) = loss([x, y]; θ_true, instance)
+	Z = @. g(X', Y)
+	contour(X, Y, Z; color, fill=true, xlabel="θ₁", ylabel="θ₂")
 end
 
 # ╔═╡ b8a56131-28e1-44f2-9f88-a846ab7fdf4b
@@ -424,28 +566,47 @@ ff(x, y) = -Zygote.gradient(θ -> Pushforward(perturbed, cost)(θ; θ_true, inst
 # ╔═╡ 09f4cbc2-aad1-49f1-9ac4-12ad63c533d4
 meshgrid(x, y) = reim(complex.(x', y))
 
-# ╔═╡ 7c825571-a588-40d8-8810-f69bf77e6e0d
-begin
-	fig = plot(x -> dot(θ_true, maximizer([x, θ[2]]; instance)); label="cost")
-	plot!(fig, x -> -Pushforward(perturbed_precise, cost)([x, θ[2]]; θ_true, instance); label="loss")
-end
-
 # ╔═╡ ff54e7f0-a1a6-4d4e-af93-911b0a687c6e
-XX, YY = meshgrid(range(-1, 1, length=10), range(-1, 1, length=10))
+XX, YY = meshgrid(range(-x_max, x_max, length=10), range(-y_max, y_max, length=10))
 
 # ╔═╡ 293dfb8a-8850-47e9-a39b-1a081eca6ef2
-begin
-	ZZZ = @. ff(XX, YY) ./ 10
-	uu = map(x -> x[1], ZZZ)
-	vv = map(x -> x[2], ZZZ)
-	contour(X, Y, @. h(X', Y); fill=true, xlabel="θ₁", ylabel="θ₂", color)
+Columns(let
+	g(x, y) = loss_variance_reduction([x, y]; θ_true, instance)
+	Z = @. g(X', Y)
+	contour(X, Y, Z; fill=true, xlabel="θ₁", ylabel="θ₂", color)
+	ZZ = @. ff(XX, YY) ./ 10
+	uu = map(x -> x[1], ZZ)
+	vv = map(x -> x[2], ZZ)
 	quiver!(XX, YY; quiver=(uu, vv))
+end,
+let
+	g(x, y) = loss([x, y]; θ_true, instance)
+	Z = @. g(X', Y)
+	contour(X, Y, Z; fill=true, xlabel="θ₁", ylabel="θ₂", color)
+	ZZ = @. ff(XX, YY) ./ 10
+	uu = map(x -> x[1], ZZ)
+	vv = map(x -> x[2], ZZ)
+	quiver!(XX, YY; quiver=(uu, vv))
+end)
+
+# ╔═╡ 147a919e-1ef6-4555-a157-8c32f8cd17c8
+ε_slider
+
+# ╔═╡ e64f5ad2-68aa-437c-b702-725d2ea02979
+nb_samples_slider
+
+# ╔═╡ 7c825571-a588-40d8-8810-f69bf77e6e0d
+let
+	fig = plot(x -> dot(θ_true, f([x, θ[2]]; instance)); label="cost")
+	plot!(fig, x -> -Pushforward(perturbed_precise, cost)([x, θ[2]]; θ_true, instance); label="loss")
 end
 
 # ╔═╡ 26530d3e-adeb-47f5-9998-ca1306d97f57
 md"## Training loop"
 
 # ╔═╡ d88a31db-995e-490d-9cd4-19b1d763a5c9
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 model = deepcopy(initial_model)
 opt_state = Flux.setup(Adam(), model)
@@ -453,7 +614,7 @@ loss_history = Float64[]
 gap_history = Float64[]
 for epoch in 1:100
 	total_loss = 0.0
-	for (; instance, x, θ_true, y_true) in dataset
+	for (; instance, x, θ_true, y_true) in train_dataset
 		val, grads = Flux.withgradient(model) do m
 		  θ = m(x)
 		  loss(θ; θ_true, instance)
@@ -462,24 +623,23 @@ for epoch in 1:100
 		total_loss += val
 	end
 	push!(loss_history, total_loss)
-	push!(gap_history, compute_gap(b, dataset, model, maximizer))
+	push!(gap_history, compute_gap(b, dataset, model, f))
 end
 end
-
-# ╔═╡ de89de25-4ac3-4ef2-9fd9-eb2055afcdc9
-y = f(model(x); instance)
-
-# ╔═╡ 602f43ac-cc53-4954-a427-8e6fe933c66f
-cost(y; θ_true)
+  ╠═╡ =#
 
 # ╔═╡ d76b3b76-8515-4cc6-8d02-407307b23ae8
+#=╠═╡
 plot(loss_history)
+  ╠═╡ =#
 
 # ╔═╡ 2ace0ac8-b5fd-4586-9e47-9400ef8b7d0e
-plot(-gap_history)
+#=╠═╡
+plot(gap_history)
+  ╠═╡ =#
 
 # ╔═╡ 26c29834-e101-4245-b94a-c8a6d27956e7
-md"# Fenchel-Young loss: use it"
+md"# VI - Fenchel-Young loss: use it"
 
 # ╔═╡ 51fb6a9c-6f69-4c6b-97eb-74224b8c1bbf
 md"## Fenchel-Young loss"
@@ -507,6 +667,8 @@ end
 md"## Training loop"
 
 # ╔═╡ a6056755-ed5b-4028-98c2-535b2df90c7d
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 fyl_model = deepcopy(initial_model)
 fyl_opt_state = Flux.setup(Adam(), fyl_model)
@@ -514,7 +676,7 @@ fyl_loss_history = Float64[]
 fyl_gap_history = Float64[]
 for epoch in 1:100
 	total_loss = 0.0
-	for (; instance, x, θ_true, y_true) in dataset
+	for (; instance, x, θ_true, y_true) in train_dataset
 		val, grads = Flux.withgradient(fyl_model) do m
 		  θ = m(x)
 		  fyl(θ, y_true; instance)
@@ -523,18 +685,32 @@ for epoch in 1:100
 		total_loss += val
 	end
 	push!(fyl_loss_history, total_loss)
-	push!(fyl_gap_history, compute_gap(b, dataset, fyl_model, maximizer))
+	push!(fyl_gap_history, compute_gap(b, dataset, fyl_model, f))
 end
 end
+  ╠═╡ =#
 
 # ╔═╡ 4298b2f6-43e1-470a-b8b8-40ba58710995
+#=╠═╡
 plot(fyl_loss_history)
+  ╠═╡ =#
 
 # ╔═╡ 4968deb4-dbe7-49f3-b719-d259304a38ff
-plot([-gap_history -fyl_gap_history]; label=["loss" "fyl"])
+#=╠═╡
+plot([gap_history fyl_gap_history]; label=["loss" "fyl"])
+  ╠═╡ =#
 
-# ╔═╡ bf138ef3-bb6c-4da1-9cb0-b27e63394849
-md"## Another loss: SPO+"
+# ╔═╡ 501f5333-2bcb-4ea3-b8a1-2b45db0332ff
+md"# VII - Python interlude"
+
+# ╔═╡ 4e5f4c1e-99c3-42b1-a3b0-2b6298fa0d08
+md"See `PyEPO/notebook.py`"
+
+# ╔═╡ 3f25a494-8a11-4b43-92c7-a5d6edcc13e1
+md"# VIII - Implementing your own loss/layer"
+
+# ╔═╡ cc0cbf77-6499-493e-86f2-0fbad0a12918
+
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -542,13 +718,11 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 DecisionFocusedLearningBenchmarks = "2fbe496a-299b-4c81-bab5-c44dfc55cf20"
 DifferentiableExpectations = "fc55d66b-b2a8-4ccc-9d64-c0c2166ceb36"
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
-ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
 InferOpt = "4846b161-c94e-4150-8dac-c7ae193c601f"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-MLUtils = "f1d291b0-491e-4a28-83b9-f70985020b54"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoTeachingTools = "661c6b06-c737-4d37-b85c-46df65de6f69"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
@@ -556,15 +730,13 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
-DecisionFocusedLearningBenchmarks = "~0.2.3"
+DecisionFocusedLearningBenchmarks = "~0.2.4"
 DifferentiableExpectations = "~0.2.0"
 Flux = "~0.16.4"
-ForwardDiff = "~1.0.1"
 HiGHS = "~1.18.2"
-InferOpt = "~0.7.0"
-JuMP = "~1.26.0"
+InferOpt = "~0.7.1"
+JuMP = "~1.27.0"
 LaTeXStrings = "~1.4.0"
-MLUtils = "~0.4.8"
 Plots = "~1.40.17"
 PlutoTeachingTools = "~0.4.1"
 PlutoUI = "~0.7.68"
@@ -575,9 +747,9 @@ Zygote = "~0.7.10"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.5"
+julia_version = "1.11.6"
 manifest_format = "2.0"
-project_hash = "32baecca91c976f9d5f7a5d92efee7c5d1adbe6c"
+project_hash = "9d86d08732f62a191953fa0f4a5c15eb1b9fe04d"
 
 [[deps.ASL_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1010,9 +1182,9 @@ version = "1.16.2+0"
 
 [[deps.DecisionFocusedLearningBenchmarks]]
 deps = ["Colors", "ConstrainedShortestPaths", "DataDeps", "Distributions", "DocStringExtensions", "Flux", "Graphs", "HiGHS", "Images", "Ipopt", "JuMP", "LaTeXStrings", "LinearAlgebra", "Metalhead", "NPZ", "Plots", "Printf", "Random", "Requires", "SCIP", "SimpleWeightedGraphs", "SparseArrays", "Statistics", "StatsBase"]
-git-tree-sha1 = "08bb4b471d95e42bc50e379a4616502e697f4d2c"
+git-tree-sha1 = "56ab531361e26067b069bc1f7f7e289c85071db4"
 uuid = "2fbe496a-299b-4c81-bab5-c44dfc55cf20"
-version = "0.2.3"
+version = "0.2.4"
 
 [[deps.DefineSingletons]]
 git-tree-sha1 = "0fba8b706d0178b4dc7fd44a96a92382c9065c2c"
@@ -1533,9 +1705,9 @@ version = "1.0.0"
 
 [[deps.InferOpt]]
 deps = ["ChainRulesCore", "DensityInterface", "DifferentiableExpectations", "Distributions", "DocStringExtensions", "LinearAlgebra", "Random", "RequiredInterfaces", "Statistics", "StatsBase", "StatsFuns"]
-git-tree-sha1 = "f61b7d6371eb9cc7476d23916de48a99e6a5d998"
+git-tree-sha1 = "5044bc8dcc5101afb410fc2ecf3dc7edee09bc58"
 uuid = "4846b161-c94e-4150-8dac-c7ae193c601f"
-version = "0.7.0"
+version = "0.7.1"
 
     [deps.InferOpt.extensions]
     InferOptFrankWolfeExt = ["DifferentiableFrankWolfe", "FrankWolfe", "ImplicitDifferentiation"]
@@ -1563,9 +1735,9 @@ version = "0.1.6"
 
 [[deps.IntelOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl"]
-git-tree-sha1 = "0f14a5456bdc6b9731a5682f439a672750a09e48"
+git-tree-sha1 = "ec1debd61c300961f98064cfb21287613ad7f303"
 uuid = "1d5cc7b8-4909-519e-a0f8-d0f5ad9712d0"
-version = "2025.0.4+0"
+version = "2025.2.0+0"
 
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
@@ -1689,9 +1861,9 @@ version = "3.1.1+0"
 
 [[deps.JuMP]]
 deps = ["LinearAlgebra", "MacroTools", "MathOptInterface", "MutableArithmetics", "OrderedCollections", "PrecompileTools", "Printf", "SparseArrays"]
-git-tree-sha1 = "90002c976264d2f571c98cd1d12851f4cba403df"
+git-tree-sha1 = "b4da175208e462c5b380f5b4d43dc9101d12c55c"
 uuid = "4076af6c-e467-56ae-b986-b466b2749572"
-version = "1.26.0"
+version = "1.27.0"
 
     [deps.JuMP.extensions]
     JuMPDimensionalDataExt = "DimensionalData"
@@ -1906,9 +2078,9 @@ version = "1.1.0"
 
 [[deps.MKL_jll]]
 deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
-git-tree-sha1 = "5de60bc6cb3899cd318d80d627560fae2e2d99ae"
+git-tree-sha1 = "282cadc186e7b2ae0eeadbd7a4dffed4196ae2aa"
 uuid = "856f044c-d86e-5d09-b602-aeab76dc8ba7"
-version = "2025.0.1+1"
+version = "2025.2.0+0"
 
 [[deps.MLCore]]
 deps = ["DataAPI", "SimpleTraits", "Tables"]
@@ -2625,9 +2797,9 @@ version = "2024.1.18+0"
 
 [[deps.ScopedValues]]
 deps = ["HashArrayMappedTries", "Logging"]
-git-tree-sha1 = "1147f140b4c8ddab224c94efa9569fc23d63ab44"
+git-tree-sha1 = "7f44eef6b1d284465fafc66baf4d9bdcc239a15b"
 uuid = "7e506255-f358-4e82-b7e4-beb19740aa63"
-version = "1.3.0"
+version = "1.4.0"
 
 [[deps.Scratch]]
 deps = ["Dates"]
@@ -2757,9 +2929,9 @@ weakdeps = ["OffsetArrays", "StaticArrays"]
 
 [[deps.StaticArrays]]
 deps = ["LinearAlgebra", "PrecompileTools", "Random", "StaticArraysCore"]
-git-tree-sha1 = "0feb6b9031bd5c51f9072393eb5ab3efd31bf9e4"
+git-tree-sha1 = "cbea8a6bd7bed51b1619658dec70035e07b8502f"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.9.13"
+version = "1.9.14"
 weakdeps = ["ChainRulesCore", "Statistics"]
 
     [deps.StaticArrays.extensions]
@@ -3343,111 +3515,137 @@ version = "1.9.2+0"
 # ╠═239a1bf0-9157-47da-9a98-b705f6c80980
 # ╠═cc433e81-6c00-4925-83eb-d17cfbba28c1
 # ╠═09ff5943-ff3c-4cf1-a04c-749989377f30
-# ╠═5b76a60c-5aab-4ac4-b605-bd70ea3a8e18
 # ╠═26804fd8-593a-45d9-9a4f-285f13090b61
 # ╠═83875d7c-b19c-4579-be47-9bdf720e9f7d
 # ╠═133ef754-12e0-4b7b-a6ba-2d7ee5bfee57
-# ╠═9737e917-c88b-478a-a410-c91640953368
+# ╠═ffbd1d2b-d6e4-436c-924e-42092a03e7bc
+# ╠═5564b42a-494a-4f8e-adc6-6331b1070d41
+# ╠═4430cecd-cc91-4df3-a983-8156e618a141
+# ╠═83ce94e8-a564-4f73-a6b1-1e53365f53a3
+# ╠═7b9fe9bc-5b20-44d6-9965-77525591070a
+# ╠═7b03e225-cbc7-4888-be25-a1d7a1123a43
+# ╠═4ea4fe5c-79fa-446f-9701-807d3fb1b482
+# ╠═3038f5c0-ad43-4571-8e91-7509b81ca18e
+# ╠═7b133396-3cf8-4832-b29d-85fb88b1e680
+# ╠═62d1655c-b664-49a8-b4c5-b16c76a5df0c
+# ╠═d9a5e173-fb8e-4c1a-8964-6ac5c3190e53
+# ╠═66fe68b4-6cef-4f10-bda8-0b9d3c135331
+# ╠═e95b6f17-18be-4fa9-b72f-fbec6054c1fe
+# ╟─9737e917-c88b-478a-a410-c91640953368
 # ╟─8a2c085a-af1a-4556-a938-bf9ac1fc85e2
 # ╟─546724f0-f625-4743-b3f2-571763437499
-# ╠═625a7ecd-3a43-49f5-bbac-36a85bde8480
+# ╟─e0be3dc5-0d5d-4e3c-89ce-cba093df586c
+# ╟─625a7ecd-3a43-49f5-bbac-36a85bde8480
 # ╟─b4972541-6017-4336-b6f3-f727bc77a577
 # ╟─a8e6c1a3-f426-4cff-8c85-d4f54cf498e9
+# ╟─96151b9c-3a11-4d21-ba5a-c1045b8f7915
+# ╟─ec883526-2bf0-4334-8849-70b476579c45
 # ╠═2876e48e-f802-48ed-999b-1c0a3a4ddcc8
-# ╠═b9ad8e94-621c-11f0-0426-7f7ab481572c
+# ╟─77ec8f1a-4d68-4417-aa0c-19d974f00d3d
+# ╟─4cb6c397-e519-4428-8a4e-b67b19f4f381
 # ╟─c376de40-1b7b-42be-916c-aafb5961145d
+# ╠═b9ad8e94-621c-11f0-0426-7f7ab481572c
 # ╟─3645c5e0-d088-4db0-ba9e-ff1fcc55d533
-# ╠═763c72ee-12a7-48b6-866b-fc257a5c0f6e
-# ╟─23e18acb-cbd7-4485-8aba-aa4931f49fd4
-# ╠═00ea1f0e-41a0-4a52-8323-98d518f3995b
-# ╠═dd1ed688-4753-445d-8f19-f3f53eed35f3
-# ╠═bb301f6a-444f-4ef2-94a7-c6dae8e308c2
+# ╟─60c2bbbe-50f3-4757-ae4e-5630c3f8e2cb
+# ╟─f4dc3271-e14e-4b8a-adc4-6973b09d8682
+# ╟─7f7e6084-7c80-4b22-94ea-a6468f7f1e4c
+# ╟─602928c8-1d24-4a33-87b3-b926c4f0b830
+# ╟─8074c3f6-6bc2-4350-85e3-fac86629e314
+# ╟─a6341d9b-e426-4a0c-8bc0-bf872efd71cd
+# ╟─6d829964-d8c0-4194-9a00-0700845f4612
+# ╟─00ea1f0e-41a0-4a52-8323-98d518f3995b
+# ╟─93892e53-69ce-49d9-b7f4-61d68847226d
+# ╟─2f68fedf-1458-4df1-8957-f918850d5a22
 # ╟─e043c78e-445b-4331-97a3-47a0278c4efc
-# ╠═f4898130-b52f-4e80-a087-451ff2a24cd3
-# ╠═3f2fa925-adc2-4539-84df-43d462b65c9d
+# ╟─f4898130-b52f-4e80-a087-451ff2a24cd3
+# ╟─3f2fa925-adc2-4539-84df-43d462b65c9d
 # ╠═7a8918b3-025c-448c-a159-5c7e307b570d
-# ╠═a19a277e-bc7c-4703-bbf4-12194d45f38c
+# ╟─a19a277e-bc7c-4703-bbf4-12194d45f38c
 # ╠═b9b2a238-6628-45cf-b8c5-6463bf87cf0f
-# ╠═4d0a0ac0-47c7-4cf9-926b-2d15e05b4d60
 # ╠═931e3f3b-6cb0-400e-9cc2-a39336fe9ca7
-# ╠═561456a3-6041-4f06-9750-dd3e8506be03
+# ╟─561456a3-6041-4f06-9750-dd3e8506be03
 # ╠═3d131fbf-b2aa-4570-8764-e9c0a7ad072e
-# ╠═880950d5-4a1e-4d89-8b05-dbd06a1b9922
 # ╠═244c37e7-a009-43cf-b934-4667b0e6ff11
+# ╠═880950d5-4a1e-4d89-8b05-dbd06a1b9922
 # ╠═fc54fe59-a3b3-48b5-b935-f87ee197ae94
-# ╠═95e9e53b-374b-4520-a63a-a806bbca0cda
-# ╠═4bda061f-569d-440f-aa92-541ee4bd65c5
-# ╠═4193afab-0068-4e61-a7eb-16bcf43a56fc
-# ╠═34535fcc-e8a6-4ed6-9a99-f7a4314118b9
-# ╠═1dbe9048-64d1-4a95-881c-bf84128355e8
-# ╠═dabb7e3a-d4d4-4def-a6a3-1192503cbe7d
-# ╠═7261e014-de6a-4c69-93b7-07d5b1101d82
-# ╠═ce630418-9e51-4876-a078-1839ef9cf936
-# ╠═7614a60a-0fa6-45cf-bd41-cdc6ce70a120
-# ╠═ab40b942-9a36-48fc-9631-be3275e658b0
-# ╠═2a95baf0-dcc0-455b-a56a-4713388912f1
-# ╠═1d9be20f-8c93-47cc-bfa6-0c757823dc37
-# ╠═2515b1a6-4a2d-49ae-bd17-418b2c93cf08
-# ╠═129535b9-b6b7-484a-93e1-39b67770da7a
+# ╟─7261e014-de6a-4c69-93b7-07d5b1101d82
+# ╟─129535b9-b6b7-484a-93e1-39b67770da7a
 # ╠═01355e11-bd28-48b0-8d56-08f809b4bdc9
 # ╠═a192579b-0e92-4ae0-8865-56d77a88f889
 # ╠═8dcc4098-1b4d-4fe3-959d-7dcdc31c60b4
-# ╠═cfe25dab-f204-420f-8519-22fc3ef6f81b
-# ╠═4e71ff0f-0bc8-4c9e-8d90-c8c2d829ed99
-# ╠═eac5a14f-46c3-486a-af79-caa6dd9a04e0
 # ╠═094a8c13-16a8-43db-8267-b08683721d9e
-# ╠═18dafc47-273b-479b-9560-0485ffea64b0
-# ╟─73f196d5-be4d-4826-842e-738fab76b910
+# ╠═dc04f6f1-18f8-4a0b-94d9-11bdd4ea2e06
+# ╟─ce630418-9e51-4876-a078-1839ef9cf936
+# ╟─dbd4bbab-c889-49bd-a032-7d4b53f2f7ac
+# ╟─8410ad91-aea9-4e06-b4d3-d19d4fde5c18
+# ╠═1d9be20f-8c93-47cc-bfa6-0c757823dc37
+# ╟─e5dcf2fe-c044-4ba9-b220-4eb5b6d71d2a
+# ╠═2b5af285-6838-423d-8ec1-f3d2f386cf67
+# ╟─b0630fec-9081-43df-8f92-43dab3bf1341
+# ╠═2a95baf0-dcc0-455b-a56a-4713388912f1
+# ╠═2515b1a6-4a2d-49ae-bd17-418b2c93cf08
+# ╟─95e9e53b-374b-4520-a63a-a806bbca0cda
+# ╠═df75d680-e4d8-4a3e-940a-87d317bdfd2c
+# ╠═34535fcc-e8a6-4ed6-9a99-f7a4314118b9
+# ╠═1dbe9048-64d1-4a95-881c-bf84128355e8
+# ╟─dabb7e3a-d4d4-4def-a6a3-1192503cbe7d
+# ╟─18dafc47-273b-479b-9560-0485ffea64b0
 # ╠═963c40ab-ca50-48a2-b90c-7f2b4b5cd6e1
-# ╟─2f638ae9-10b8-4f2c-ac3d-481deaebe63b
-# ╠═89cb2e20-3d9c-41a1-996e-8fa99664a35a
-# ╠═b333d3c6-2bea-4349-85fe-2a7dbd47f785
 # ╠═d5bcaf34-a888-4699-944d-e183e24224f1
 # ╠═54a9a919-8fa2-4c1e-805b-5cce1508ca82
-# ╟─38409078-f421-42f6-b416-aa0965c4ae41
-# ╠═de89de25-4ac3-4ef2-9fd9-eb2055afcdc9
+# ╟─cfe25dab-f204-420f-8519-22fc3ef6f81b
+# ╠═4e71ff0f-0bc8-4c9e-8d90-c8c2d829ed99
+# ╠═eac5a14f-46c3-486a-af79-caa6dd9a04e0
+# ╟─f47b9102-222f-4068-b48a-ed57d81f2422
 # ╠═028d396d-ee09-4357-a3f1-3628a0279967
+# ╠═de89de25-4ac3-4ef2-9fd9-eb2055afcdc9
 # ╠═602f43ac-cc53-4954-a427-8e6fe933c66f
 # ╠═e33c7730-1d9d-4f91-a46e-d5d17ac98dca
+# ╟─2d7f8095-cf96-413d-a3d4-18c78488dbfe
+# ╠═a7d03904-3c69-4553-9a76-7fb9df80dbbd
+# ╠═ac39ca94-335d-4228-a4df-61d889ba81a9
+# ╠═386170ef-9c27-4a94-8dd1-ec16ff92fc59
 # ╠═c90217ce-a29d-4757-bf6c-65ac5f55747d
+# ╠═e1c9a5a8-811f-4a02-add8-3a54af5e37dc
 # ╠═f5f2a94b-9602-4843-901a-b5f836aadf8e
-# ╠═39179c93-70c3-46db-a64f-cbabc4a57652
-# ╠═8632db83-58d0-4cca-9cd1-e9c39d45ac6d
+# ╟─39179c93-70c3-46db-a64f-cbabc4a57652
+# ╟─8632db83-58d0-4cca-9cd1-e9c39d45ac6d
+# ╟─86f95530-b744-4dbe-b006-232bce4cc6e6
+# ╠═e07581fb-1372-46d5-8671-11b4a5381e51
 # ╠═6fe5710a-acc6-4e08-b641-0a3c603bc148
+# ╠═3418e62f-30bf-4965-a06b-1753e63c5262
 # ╠═1181340f-c8bc-4ae2-b75d-1aa4bf8b0dcc
 # ╠═dd572391-4c4d-4f78-90e4-176a95ea51f8
-# ╠═a3665206-b01a-4e29-8f08-8c6e12de6095
-# ╠═7b9fe9bc-5b20-44d6-9965-77525591070a
-# ╠═3038f5c0-ad43-4571-8e91-7509b81ca18e
-# ╠═62d1655c-b664-49a8-b4c5-b16c76a5df0c
-# ╠═7b133396-3cf8-4832-b29d-85fb88b1e680
-# ╠═7b03e225-cbc7-4888-be25-a1d7a1123a43
-# ╠═d9a5e173-fb8e-4c1a-8964-6ac5c3190e53
-# ╠═66fe68b4-6cef-4f10-bda8-0b9d3c135331
 # ╠═8b65bc69-ffac-4e3f-abf7-7fdaf31cd5af
 # ╠═222cdfe9-c720-4103-8ca1-db9b5d8b1cc3
 # ╠═e3b9d3e2-b413-4421-8df9-1f3e5990fcf9
+# ╠═e491bc7e-8f50-454d-aeed-d553a9c94b77
 # ╠═11aa9fff-b7ff-414e-8733-746f268727f1
+# ╠═8bf1d8a5-41a0-4334-a313-93086e896b45
 # ╠═9e663a4f-9a43-4a02-a332-2ab7d919dc42
 # ╠═b8a56131-28e1-44f2-9f88-a846ab7fdf4b
 # ╠═09f4cbc2-aad1-49f1-9ac4-12ad63c533d4
-# ╠═293dfb8a-8850-47e9-a39b-1a081eca6ef2
-# ╠═7c825571-a588-40d8-8810-f69bf77e6e0d
 # ╠═ff54e7f0-a1a6-4d4e-af93-911b0a687c6e
-# ╠═26530d3e-adeb-47f5-9998-ca1306d97f57
+# ╟─293dfb8a-8850-47e9-a39b-1a081eca6ef2
+# ╠═147a919e-1ef6-4555-a157-8c32f8cd17c8
+# ╠═e64f5ad2-68aa-437c-b702-725d2ea02979
+# ╠═7c825571-a588-40d8-8810-f69bf77e6e0d
+# ╟─26530d3e-adeb-47f5-9998-ca1306d97f57
 # ╠═d88a31db-995e-490d-9cd4-19b1d763a5c9
 # ╠═d76b3b76-8515-4cc6-8d02-407307b23ae8
 # ╠═2ace0ac8-b5fd-4586-9e47-9400ef8b7d0e
-# ╠═26c29834-e101-4245-b94a-c8a6d27956e7
-# ╠═51fb6a9c-6f69-4c6b-97eb-74224b8c1bbf
+# ╟─26c29834-e101-4245-b94a-c8a6d27956e7
+# ╟─51fb6a9c-6f69-4c6b-97eb-74224b8c1bbf
 # ╠═2a5ff679-13b2-4eae-830f-8b0517d72fe1
 # ╠═a75e1c26-0eca-4280-88b2-4a8fda1a8810
 # ╠═8caf9868-b83a-436f-8350-ad79537f1f9d
-# ╠═61e9ddca-6485-420b-922a-d14fb1b130d9
 # ╟─477f5c2f-1287-4981-a245-5af79e8a4fe5
 # ╠═a6056755-ed5b-4028-98c2-535b2df90c7d
 # ╠═4298b2f6-43e1-470a-b8b8-40ba58710995
 # ╠═4968deb4-dbe7-49f3-b719-d259304a38ff
-# ╠═bf138ef3-bb6c-4da1-9cb0-b27e63394849
+# ╟─501f5333-2bcb-4ea3-b8a1-2b45db0332ff
+# ╟─4e5f4c1e-99c3-42b1-a3b0-2b6298fa0d08
+# ╟─3f25a494-8a11-4b43-92c7-a5d6edcc13e1
+# ╠═cc0cbf77-6499-493e-86f2-0fbad0a12918
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
